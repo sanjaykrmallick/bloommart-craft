@@ -1,5 +1,6 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { BackendCart } from "@/api/cart";
 
 export interface CartItem {
   id: string;
@@ -16,12 +17,14 @@ export interface CartItem {
 interface CartState {
   items: CartItem[];
   isCartOpen: boolean;
-  addItem: (item: Omit<CartItem, 'quantity'>) => void;
+  addItem: (item: Omit<CartItem, "quantity">) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
   toggleCart: () => void;
   setCartOpen: (open: boolean) => void;
+  setItems: (items: CartItem[]) => void;
+  syncFromBackend: (cart: BackendCart) => void;
   getTotalItems: () => number;
   getTotalPrice: () => number;
   getTotalSavings: () => number;
@@ -39,7 +42,7 @@ export const useCartStore = create<CartState>()(
           if (existingItem) {
             return {
               items: state.items.map((i) =>
-                i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+                i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i,
               ),
             };
           }
@@ -59,9 +62,7 @@ export const useCartStore = create<CartState>()(
           return;
         }
         set((state) => ({
-          items: state.items.map((i) =>
-            i.id === id ? { ...i, quantity } : i
-          ),
+          items: state.items.map((i) => (i.id === id ? { ...i, quantity } : i)),
         }));
       },
 
@@ -71,6 +72,22 @@ export const useCartStore = create<CartState>()(
 
       setCartOpen: (open) => set({ isCartOpen: open }),
 
+      setItems: (items) => set({ items }),
+
+      syncFromBackend: (cart) =>
+        set({
+          items: cart.items.map(({ productId, quantity, product }) => ({
+            id: productId,
+            name: product.name,
+            price: product.priceInCents / 100,
+            image:
+              product.imageUrl ||
+              "https://placehold.co/160x200/f2f0eb/334155?text=OrderMesh",
+            quantity,
+            brand: product.sku,
+          })),
+        }),
+
       getTotalItems: () => {
         return get().items.reduce((total, item) => total + item.quantity, 0);
       },
@@ -78,7 +95,7 @@ export const useCartStore = create<CartState>()(
       getTotalPrice: () => {
         return get().items.reduce(
           (total, item) => total + item.price * item.quantity,
-          0
+          0,
         );
       },
 
@@ -92,7 +109,7 @@ export const useCartStore = create<CartState>()(
       },
     }),
     {
-      name: 'cart-storage',
-    }
-  )
+      name: "cart-storage",
+    },
+  ),
 );

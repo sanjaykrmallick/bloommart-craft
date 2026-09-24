@@ -1,21 +1,26 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
-export type UserRole = 'customer' | 'vendor' | 'admin' | 'delivery_agent';
+export type UserRole = "CUSTOMER" | "WAREHOUSE" | "OPERATIONS" | "ADMIN";
 
 export interface User {
   id: string;
-  name: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   phone?: string;
   avatar?: string;
   role: UserRole;
+  isActive?: boolean;
 }
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
-  login: (user: User) => void;
+  accessToken: string | null;
+  refreshToken: string | null;
+  login: (user: User, accessToken: string, refreshToken: string) => void;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
 }
@@ -25,13 +30,24 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       isAuthenticated: false,
+      accessToken: null,
+      refreshToken: null,
 
-      login: (user) => {
-        set({ user, isAuthenticated: true });
+      login: (user, accessToken, refreshToken) => {
+        localStorage.setItem("ordermesh-access-token", accessToken);
+        localStorage.setItem("ordermesh-refresh-token", refreshToken);
+        set({ user, accessToken, refreshToken, isAuthenticated: true });
       },
 
       logout: () => {
-        set({ user: null, isAuthenticated: false });
+        localStorage.removeItem("ordermesh-access-token");
+        localStorage.removeItem("ordermesh-refresh-token");
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+        });
       },
 
       updateUser: (updates) => {
@@ -41,7 +57,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'auth-storage',
-    }
-  )
+      name: "auth-storage",
+    },
+  ),
 );

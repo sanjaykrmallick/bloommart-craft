@@ -1,11 +1,53 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Minus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { useCartStore } from '@/store/useCartStore';
+import { motion, AnimatePresence } from "framer-motion";
+import { X, Plus, Minus, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { useCartStore } from "@/store/useCartStore";
+import { useAuthStore } from "@/store/useAuthStore";
+import { updateCartItem, removeCartItem } from "@/api/cart";
+import { getApiErrorMessage } from "@/api/client";
+import { toast } from "sonner";
 
 const CartDrawer = () => {
-  const { items, isCartOpen, setCartOpen, updateQuantity, removeItem, getTotalPrice, getTotalSavings } = useCartStore();
+  const {
+    items,
+    isCartOpen,
+    setCartOpen,
+    updateQuantity,
+    removeItem,
+    syncFromBackend,
+    getTotalPrice,
+    getTotalSavings,
+  } = useCartStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  const handleQuantity = async (id: string, quantity: number) => {
+    if (!isAuthenticated) {
+      updateQuantity(id, quantity);
+      return;
+    }
+    try {
+      const cart =
+        quantity <= 0
+          ? await removeCartItem(id)
+          : await updateCartItem(id, quantity);
+      syncFromBackend(cart);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Unable to update your cart."));
+    }
+  };
+
+  const handleRemove = async (id: string) => {
+    if (!isAuthenticated) {
+      removeItem(id);
+      return;
+    }
+    try {
+      syncFromBackend(await removeCartItem(id));
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Unable to remove this item."));
+    }
+  };
 
   const totalPrice = getTotalPrice();
   const totalSavings = getTotalSavings();
@@ -25,10 +67,10 @@ const CartDrawer = () => {
 
           {/* Drawer */}
           <motion.div
-            initial={{ x: '100%' }}
+            initial={{ x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-background z-50 flex flex-col shadow-2xl"
           >
             {/* Header */}
@@ -53,7 +95,9 @@ const CartDrawer = () => {
               {items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <ShoppingBag className="w-16 h-16 text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Your cart is empty</h3>
+                  <h3 className="text-lg font-semibold mb-2">
+                    Your cart is empty
+                  </h3>
                   <p className="text-muted-foreground text-sm mb-6">
                     Add items to your cart to see them here
                   </p>
@@ -89,13 +133,15 @@ const CartDrawer = () => {
                       {(item.size || item.color) && (
                         <p className="text-xs text-muted-foreground mb-2">
                           {item.size && `Size: ${item.size}`}
-                          {item.size && item.color && ' | '}
+                          {item.size && item.color && " | "}
                           {item.color && `Color: ${item.color}`}
                         </p>
                       )}
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="font-bold">₹{item.price.toLocaleString()}</span>
+                          <span className="font-bold">
+                            ₹{item.price.toLocaleString()}
+                          </span>
                           {item.originalPrice && (
                             <span className="text-xs text-muted-foreground line-through ml-2">
                               ₹{item.originalPrice.toLocaleString()}
@@ -104,7 +150,9 @@ const CartDrawer = () => {
                         </div>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={() =>
+                              handleQuantity(item.id, item.quantity - 1)
+                            }
                             className="w-7 h-7 rounded-lg bg-background border border-border flex items-center justify-center hover:border-primary transition-colors"
                           >
                             <Minus className="w-3 h-3" />
@@ -113,7 +161,9 @@ const CartDrawer = () => {
                             {item.quantity}
                           </span>
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() =>
+                              handleQuantity(item.id, item.quantity + 1)
+                            }
                             className="w-7 h-7 rounded-lg bg-background border border-border flex items-center justify-center hover:border-primary transition-colors"
                           >
                             <Plus className="w-3 h-3" />
@@ -122,7 +172,7 @@ const CartDrawer = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => removeItem(item.id)}
+                      onClick={() => handleRemove(item.id)}
                       className="self-start p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -138,14 +188,23 @@ const CartDrawer = () => {
                 {totalSavings > 0 && (
                   <div className="flex items-center justify-between text-deal text-sm">
                     <span>You save</span>
-                    <span className="font-semibold">₹{totalSavings.toLocaleString()}</span>
+                    <span className="font-semibold">
+                      ₹{totalSavings.toLocaleString()}
+                    </span>
                   </div>
                 )}
                 <div className="flex items-center justify-between text-lg">
                   <span className="font-medium">Total</span>
-                  <span className="font-bold">₹{totalPrice.toLocaleString()}</span>
+                  <span className="font-bold">
+                    ₹{totalPrice.toLocaleString()}
+                  </span>
                 </div>
-                <Button className="w-full" size="lg" asChild onClick={() => setCartOpen(false)}>
+                <Button
+                  className="w-full"
+                  size="lg"
+                  asChild
+                  onClick={() => setCartOpen(false)}
+                >
                   <Link to="/checkout">
                     Proceed to Checkout
                     <ArrowRight className="w-4 h-4 ml-2" />

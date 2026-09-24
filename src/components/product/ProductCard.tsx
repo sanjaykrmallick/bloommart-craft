@@ -1,25 +1,42 @@
-import { Link } from 'react-router-dom';
-import { Heart, Star, ShoppingBag } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { Product } from '@/types';
-import { useCartStore } from '@/store/useCartStore';
-import { useWishlistStore } from '@/store/useWishlistStore';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { Link } from "react-router-dom";
+import { Heart, Star, ShoppingBag } from "lucide-react";
+import { motion } from "framer-motion";
+import { Product } from "@/types";
+import { useCartStore } from "@/store/useCartStore";
+import { useWishlistStore } from "@/store/useWishlistStore";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { addCartItem } from "@/api/cart";
+import { getApiErrorMessage } from "@/api/client";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface ProductCardProps {
   product: Product;
-  variant?: 'default' | 'compact' | 'horizontal';
+  variant?: "default" | "compact" | "horizontal";
 }
 
-const ProductCard = ({ product, variant = 'default' }: ProductCardProps) => {
+const ProductCard = ({ product, variant = "default" }: ProductCardProps) => {
   const { addItem } = useCartStore();
+  const syncFromBackend = useCartStore((state) => state.syncFromBackend);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { isInWishlist, toggleItem } = useWishlistStore();
 
   const inWishlist = isInWishlist(product.id);
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
+    if (isAuthenticated) {
+      try {
+        const cart = await addCartItem(product.id);
+        syncFromBackend(cart);
+        toast.success("Added to cart!", { description: product.name });
+      } catch (error) {
+        toast.error(
+          getApiErrorMessage(error, "Unable to add this product to your cart."),
+        );
+      }
+      return;
+    }
     addItem({
       id: product.id,
       name: product.name,
@@ -28,7 +45,7 @@ const ProductCard = ({ product, variant = 'default' }: ProductCardProps) => {
       image: product.image,
       brand: product.brand,
     });
-    toast.success('Added to cart!', {
+    toast.success("Added to cart!", {
       description: product.name,
     });
   };
@@ -43,10 +60,10 @@ const ProductCard = ({ product, variant = 'default' }: ProductCardProps) => {
       image: product.image,
       brand: product.brand,
     });
-    toast.success(inWishlist ? 'Removed from wishlist' : 'Added to wishlist');
+    toast.success(inWishlist ? "Removed from wishlist" : "Added to wishlist");
   };
 
-  if (variant === 'horizontal') {
+  if (variant === "horizontal") {
     return (
       <Link to={`/products/${product.id}`}>
         <motion.div
@@ -80,7 +97,9 @@ const ProductCard = ({ product, variant = 'default' }: ProductCardProps) => {
               </span>
             </div>
             <div className="mt-auto flex items-center gap-2">
-              <span className="font-bold text-lg">₹{product.price.toLocaleString()}</span>
+              <span className="font-bold text-lg">
+                ₹{product.price.toLocaleString()}
+              </span>
               {product.originalPrice && (
                 <span className="text-sm text-muted-foreground line-through">
                   ₹{product.originalPrice.toLocaleString()}
@@ -98,8 +117,8 @@ const ProductCard = ({ product, variant = 'default' }: ProductCardProps) => {
       <motion.div
         whileHover={{ y: -4 }}
         className={cn(
-          'group product-card bg-card',
-          variant === 'compact' && 'text-sm'
+          "group product-card bg-card",
+          variant === "compact" && "text-sm",
         )}
       >
         {/* Image Container */}
@@ -126,11 +145,13 @@ const ProductCard = ({ product, variant = 'default' }: ProductCardProps) => {
             whileTap={{ scale: 0.9 }}
             onClick={handleToggleWishlist}
             className={cn(
-              'absolute top-3 right-3 w-9 h-9 rounded-full bg-background/90 backdrop-blur flex items-center justify-center shadow-md transition-colors',
-              inWishlist ? 'text-sale' : 'text-muted-foreground hover:text-sale'
+              "absolute top-3 right-3 w-9 h-9 rounded-full bg-background/90 backdrop-blur flex items-center justify-center shadow-md transition-colors",
+              inWishlist
+                ? "text-sale"
+                : "text-muted-foreground hover:text-sale",
             )}
           >
-            <Heart className={cn('w-5 h-5', inWishlist && 'fill-current')} />
+            <Heart className={cn("w-5 h-5", inWishlist && "fill-current")} />
           </motion.button>
 
           {/* Quick Add to Cart */}
@@ -167,7 +188,9 @@ const ProductCard = ({ product, variant = 'default' }: ProductCardProps) => {
 
           {/* Price */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-lg">₹{product.price.toLocaleString()}</span>
+            <span className="font-bold text-lg">
+              ₹{product.price.toLocaleString()}
+            </span>
             {product.originalPrice && (
               <>
                 <span className="text-sm text-muted-foreground line-through">
