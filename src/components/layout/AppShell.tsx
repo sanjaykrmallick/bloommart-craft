@@ -7,38 +7,50 @@ import {
   Home,
   LogOut,
   Package,
+  Settings2,
   ShoppingBag,
   Users,
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
+type WorkspaceLink = readonly [
+  string,
+  string,
+  React.ComponentType<{ className?: string }>,
+];
 
 const AppShell = ({ children }: { children: React.ReactNode }) => {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
   const role = user?.role;
-  const links =
+  const links: WorkspaceLink[] =
     role === "CUSTOMER"
       ? [
-          ["/", "Home", Home],
-          ["/products", "Products", ShoppingBag],
-          ["/orders", "Orders", ClipboardList],
+          ["/", "Shop home", Home],
+          ["/products", "Browse products", ShoppingBag],
+          ["/orders", "My orders", ClipboardList],
           ["/notifications", "Notifications", Bell],
-          ["/profile", "Profile", Users],
+          ["/profile", "My account", Users],
         ]
       : [
-          ["/", "Dashboard", Home],
-          ["/products", "Products", ShoppingBag],
+          ["/", "Workspace", Home],
+          ["/products", "Storefront", ShoppingBag],
+          ...(role === "ADMIN" || role === "OPERATIONS"
+            ? [["/admin/products", "Manage products", Settings2] as const]
+            : []),
+          ...(role === "ADMIN"
+            ? [["/admin/categories", "Manage categories", Settings2] as const]
+            : []),
           ["/inventory", "Inventory", Boxes],
           ["/orders", "Orders", ClipboardList],
           ...(role === "ADMIN" || role === "OPERATIONS"
             ? [
-                ["/users", "Users", Users],
+                ["/users", "Users", Users] as const,
                 ["/analytics", "Analytics", ChartNoAxesCombined] as const,
               ]
             : []),
           ["/notifications", "Notifications", Bell],
-          ["/profile", "Profile", Users],
+          ["/profile", "My account", Users],
         ];
 
   return (
@@ -52,9 +64,14 @@ const AppShell = ({ children }: { children: React.ReactNode }) => {
             <span className="font-bold text-xl">OrderMesh</span>
           </Link>
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              {user?.firstName || user?.email}
-            </span>
+            <div className="hidden text-right sm:block">
+              <p className="text-sm font-semibold">
+                {user?.firstName || user?.email}
+              </p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                {role}
+              </p>
+            </div>
             <button
               aria-label="Log out"
               className="rounded-lg p-2 hover:bg-secondary"
@@ -70,9 +87,18 @@ const AppShell = ({ children }: { children: React.ReactNode }) => {
       </header>
       <div className="container grid gap-6 py-6 md:grid-cols-[220px_1fr]">
         <aside className="hidden rounded-2xl border bg-background p-3 md:block">
-          <p className="px-3 pb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {role}
-          </p>
+          <div className="mb-3 rounded-xl bg-primary/10 px-3 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              {role} workspace
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {role === "CUSTOMER"
+                ? "Shop, pay, and track your orders"
+                : role === "WAREHOUSE"
+                  ? "Keep stock accurate and ready to ship"
+                  : "Run the store from one place"}
+            </p>
+          </div>
           <nav className="space-y-1">
             {links.map(([href, label, Icon]) => (
               <Link

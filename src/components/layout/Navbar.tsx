@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useRef, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   Heart,
@@ -11,15 +11,16 @@ import {
   ChevronDown,
   MapPin,
   Phone,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useCartStore } from '@/store/useCartStore';
-import { useWishlistStore } from '@/store/useWishlistStore';
-import { categories } from '@/data/mockData';
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useCartStore } from "@/store/useCartStore";
+import { useWishlistStore } from "@/store/useWishlistStore";
+import { useAuthStore } from "@/store/useAuthStore";
+import { categories } from "@/data/mockData";
 
 const Navbar = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -27,6 +28,7 @@ const Navbar = () => {
 
   const { getTotalItems, toggleCart } = useCartStore();
   const { items: wishlistItems } = useWishlistStore();
+  const user = useAuthStore((state) => state.user);
 
   const cartItemCount = getTotalItems();
   const wishlistCount = wishlistItems.length;
@@ -42,7 +44,7 @@ const Navbar = () => {
     if (searchQuery.trim()) {
       navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
       setIsSearchOpen(false);
-      setSearchQuery('');
+      setSearchQuery("");
     }
   };
 
@@ -65,7 +67,10 @@ const Navbar = () => {
             <Link to="/offers" className="hover:text-accent transition-colors">
               Offers & Deals
             </Link>
-            <Link to="/vendor/dashboard" className="hover:text-accent transition-colors">
+            <Link
+              to="/vendor/dashboard"
+              className="hover:text-accent transition-colors"
+            >
               Sell on ShopKart
             </Link>
           </div>
@@ -119,10 +124,15 @@ const Navbar = () => {
               </button>
 
               {/* Profile */}
-              <Link to="/auth/login">
+              <Link to={user ? "/profile" : "/auth/login"} className="relative">
                 <Button variant="ghost" size="icon" className="relative">
                   <User className="w-5 h-5" />
                 </Button>
+                {user && (
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary-foreground">
+                    {user.role}
+                  </span>
+                )}
               </Link>
 
               {/* Wishlist */}
@@ -138,7 +148,12 @@ const Navbar = () => {
               </Link>
 
               {/* Cart */}
-              <Button variant="ghost" size="icon" className="relative" onClick={toggleCart}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative"
+                onClick={toggleCart}
+              >
                 <ShoppingBag className="w-5 h-5" />
                 {cartItemCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs font-bold rounded-full flex items-center justify-center">
@@ -169,27 +184,28 @@ const Navbar = () => {
 
                   {/* Mega Menu */}
                   <AnimatePresence>
-                    {activeCategory === category.id && category.subcategories && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 10 }}
-                        className="absolute top-full left-0 bg-background border border-border rounded-xl shadow-xl p-4 min-w-[200px] z-50"
-                      >
-                        <ul className="space-y-1">
-                          {category.subcategories.map((sub) => (
-                            <li key={sub.id}>
-                              <Link
-                                to={`/categories/${category.slug}/${sub.slug}`}
-                                className="block px-3 py-2 text-sm rounded-lg hover:bg-secondary transition-colors"
-                              >
-                                {sub.name}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </motion.div>
-                    )}
+                    {activeCategory === category.id &&
+                      category.subcategories && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          className="absolute top-full left-0 bg-background border border-border rounded-xl shadow-xl p-4 min-w-[200px] z-50"
+                        >
+                          <ul className="space-y-1">
+                            {category.subcategories.map((sub) => (
+                              <li key={sub.id}>
+                                <Link
+                                  to={`/categories/${category.slug}/${sub.slug}`}
+                                  className="block px-3 py-2 text-sm rounded-lg hover:bg-secondary transition-colors"
+                                >
+                                  {sub.name}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </motion.div>
+                      )}
                   </AnimatePresence>
                 </li>
               ))}
@@ -210,7 +226,7 @@ const Navbar = () => {
           {isSearchOpen && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
+              animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               className="md:hidden border-t border-border overflow-hidden"
             >
@@ -229,7 +245,7 @@ const Navbar = () => {
                     type="button"
                     onClick={() => {
                       setIsSearchOpen(false);
-                      setSearchQuery('');
+                      setSearchQuery("");
                     }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
                   >
@@ -254,10 +270,10 @@ const Navbar = () => {
               onClick={() => setIsMobileMenuOpen(false)}
             />
             <motion.div
-              initial={{ x: '-100%' }}
+              initial={{ x: "-100%" }}
               animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="fixed top-0 left-0 bottom-0 w-[280px] bg-background z-50 md:hidden overflow-y-auto"
             >
               <div className="p-4 border-b border-border flex items-center justify-between">
@@ -293,11 +309,11 @@ const Navbar = () => {
 
                 <div className="mt-6 pt-6 border-t border-border">
                   <Link
-                    to="/auth/login"
+                    to={user ? "/profile" : "/auth/login"}
                     className="block py-3 px-4 font-medium rounded-lg hover:bg-secondary transition-colors"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    Login / Sign Up
+                    {user ? `${user.role} account` : "Login / Sign Up"}
                   </Link>
                   <Link
                     to="/orders"

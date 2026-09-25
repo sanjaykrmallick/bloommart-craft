@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import AppShell from "@/components/layout/AppShell";
-import { getProducts } from "@/api/catalog";
+import { CatalogProduct, getProducts } from "@/api/catalog";
 import {
   Category,
   createCategory,
@@ -20,7 +20,7 @@ const Management = () => {
     ? "categories"
     : "products";
   const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [form, setForm] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const load = () => {
@@ -28,10 +28,14 @@ const Management = () => {
       getCategories()
         .then((r) => setCategories(r.data))
         .catch((e) => toast.error(getApiErrorMessage(e)));
-    else
-      getProducts({ limit: 100 })
-        .then((r) => setProducts(r.data))
+    else {
+      Promise.all([getProducts({ limit: 100 }), getCategories()])
+        .then(([productResponse, categoryResponse]) => {
+          setProducts(productResponse.data);
+          setCategories(categoryResponse.data);
+        })
         .catch((e) => toast.error(getApiErrorMessage(e)));
+    }
   };
   useEffect(load, [section]);
   const save = async (event: React.FormEvent) => {
@@ -43,9 +47,8 @@ const Management = () => {
           slug: form.slug,
           description: form.description,
         };
-        editingId
-          ? await updateCategory(editingId, payload)
-          : await createCategory(payload);
+        if (editingId) await updateCategory(editingId, payload);
+        else await createCategory(payload);
       } else {
         const payload = {
           sku: form.sku,
@@ -56,9 +59,8 @@ const Management = () => {
           imageUrl: form.imageUrl,
           categoryId: form.categoryId,
         };
-        editingId
-          ? await updateProduct(editingId, payload)
-          : await createProduct(payload);
+        if (editingId) await updateProduct(editingId, payload);
+        else await createProduct(payload);
       }
       setForm({});
       setEditingId(null);
@@ -70,25 +72,25 @@ const Management = () => {
       toast.error(getApiErrorMessage(e));
     }
   };
-  const edit = (item: any) => {
-    setEditingId(item.id);
-    setForm(
-      section === "categories"
-        ? {
-            name: item.name,
-            slug: item.slug,
-            description: item.description || "",
-          }
-        : {
-            sku: item.sku,
-            name: item.name,
-            slug: item.slug,
-            description: item.description || "",
-            price: String(item.priceInCents / 100),
-            imageUrl: item.imageUrl || "",
-            categoryId: item.categoryId || "",
-          },
-    );
+  const edit = (item: Category | CatalogProduct) => {
+    if (section === "categories") {
+      setForm({
+        name: item.name,
+        slug: item.slug,
+        description: item.description || "",
+      });
+      return;
+    }
+    const product = item as CatalogProduct;
+    setForm({
+      sku: product.sku,
+      name: product.name,
+      slug: product.slug,
+      description: product.description || "",
+      price: String(product.priceInCents / 100),
+      imageUrl: product.imageUrl || "",
+      categoryId: product.category?.id || "",
+    });
   };
   return (
     <AppShell>
@@ -109,19 +111,35 @@ const Management = () => {
         >
           {(section === "categories"
             ? ["name", "slug", "description"]
-            : ["sku", "name", "slug", "price", "imageUrl", "categoryId"]
+            : ["sku", "name", "slug", "price", "imageUrl"]
           ).map((key) => (
             <input
               key={key}
-              required={["name", "slug", "sku", "price", "categoryId"].includes(
-                key,
-              )}
-              placeholder={key}
+              required={["name", "slug", "sku", "price"].includes(key)}
+              type={key === "price" ? "number" : "text"}
+              min={key === "price" ? "0" : undefined}
+              step={key === "price" ? "0.01" : undefined}
+              placeholder={key === "price" ? "Price (e.g. 499.00)" : key}
               value={form[key] || ""}
               onChange={(e) => setForm({ ...form, [key]: e.target.value })}
               className="h-11 rounded-lg border px-3"
             />
           ))}
+          {section === "products" && (
+            <select
+              required
+              value={form.categoryId || ""}
+              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+              className="h-11 rounded-lg border bg-background px-3"
+            >
+              <option value="">Select a category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          )}
           <button className="rounded-lg bg-primary px-4 py-2 text-primary-foreground sm:col-span-2">
             {editingId ? "Update" : "Create"}{" "}
             {section === "categories" ? "category" : "product"}

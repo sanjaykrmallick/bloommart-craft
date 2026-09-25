@@ -9,6 +9,8 @@ import {
   getUsers,
   InventoryRecord,
   ManagedUser,
+  releaseInventory,
+  reserveInventory,
 } from "@/api/resources";
 import { getApiErrorMessage } from "@/api/client";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -37,7 +39,9 @@ const Backoffice = () => {
         ? getInventory().then(setInventory)
         : section === "users"
           ? getUsers().then((r) => setUsers(r.data))
-          : getAnalyticsDashboard().then(setAnalytics);
+          : section === "analytics"
+            ? getAnalyticsDashboard().then(setAnalytics)
+            : Promise.resolve();
     request
       .catch((e) =>
         toast.error(getApiErrorMessage(e, "Unable to load this workspace.")),
@@ -74,18 +78,7 @@ const Backoffice = () => {
         ) : section === "analytics" ? (
           <AnalyticsView data={analytics} />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl border bg-background p-5">
-              <p className="text-sm text-muted-foreground">Role</p>
-              <p className="mt-2 text-xl font-bold">{role}</p>
-            </div>
-            <div className="rounded-2xl border bg-background p-5">
-              <p className="text-sm text-muted-foreground">Operational data</p>
-              <p className="mt-2 font-semibold">
-                Use the navigation to inspect live records.
-              </p>
-            </div>
-          </div>
+          <RoleDashboard role={role} />
         )}
       </div>
     </AppShell>
@@ -146,9 +139,40 @@ const InventoryView = ({
                 Adjust
               </button>
               {canReserve && (
-                <span className="text-xs text-muted-foreground">
-                  Reserve/release available via service API
-                </span>
+                <>
+                  <button
+                    className="rounded-lg border px-3 py-2 text-sm"
+                    onClick={async () => {
+                      const value = window.prompt("Quantity to reserve");
+                      if (!value || Number(value) <= 0) return;
+                      try {
+                        await reserveInventory(record.productId, Number(value));
+                        toast.success("Inventory reserved");
+                        onRefresh();
+                      } catch (e) {
+                        toast.error(getApiErrorMessage(e));
+                      }
+                    }}
+                  >
+                    Reserve
+                  </button>
+                  <button
+                    className="rounded-lg border px-3 py-2 text-sm"
+                    onClick={async () => {
+                      const value = window.prompt("Quantity to release");
+                      if (!value || Number(value) <= 0) return;
+                      try {
+                        await releaseInventory(record.productId, Number(value));
+                        toast.success("Inventory released");
+                        onRefresh();
+                      } catch (e) {
+                        toast.error(getApiErrorMessage(e));
+                      }
+                    }}
+                  >
+                    Release
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -157,6 +181,67 @@ const InventoryView = ({
     </div>
   </div>
 );
+
+const RoleDashboard = ({ role }: { role?: string }) => {
+  const cards =
+    role === "WAREHOUSE"
+      ? [
+          [
+            "Inventory",
+            "Review stock levels and correct counts.",
+            "/inventory",
+          ],
+          ["Orders", "See orders assigned to your account.", "/orders"],
+        ]
+      : role === "OPERATIONS"
+        ? [
+            [
+              "Products",
+              "Keep the catalog current and sellable.",
+              "/operations/products",
+            ],
+            ["Inventory", "Reserve, release, and adjust stock.", "/inventory"],
+            ["Analytics", "Monitor store performance.", "/analytics"],
+          ]
+        : role === "ADMIN"
+          ? [
+              [
+                "Products",
+                "Create and publish catalog items.",
+                "/admin/products",
+              ],
+              [
+                "Inventory",
+                "Control availability across the store.",
+                "/inventory",
+              ],
+              ["Users", "Review staff and customer access.", "/users"],
+              ["Analytics", "Understand sales and operations.", "/analytics"],
+            ]
+          : [
+              ["Shop products", "Discover the latest catalog.", "/products"],
+              ["My orders", "Track purchases and payment status.", "/orders"],
+              ["My account", "Manage your profile details.", "/profile"],
+            ];
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {cards.map(([label, description, href]) => (
+        <a
+          key={href}
+          href={href}
+          className="group rounded-2xl border bg-background p-5 transition-colors hover:border-primary"
+        >
+          <p className="font-semibold group-hover:text-primary">{label}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+          <p className="mt-5 text-sm font-semibold text-primary">
+            Open workspace →
+          </p>
+        </a>
+      ))}
+    </div>
+  );
+};
 
 const UsersView = ({ users }: { users: ManagedUser[] }) => (
   <div className="overflow-hidden rounded-2xl border bg-background">
